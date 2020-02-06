@@ -99,6 +99,67 @@ BEGIN
   PREPARE Query FROM @myQueryCreateTable;
   EXECUTE Query;
 END $$
+
+
+#------------------------------------------------+
+#------------- createInsertValues                |
+#------------------------------------------------+
+#-- permet de générer la chaine de valeurs qui seront inséret dans une table à partir d'une chaine et d'un delimiteur
+
+
+/*
+CREATE OR REPLACE FUNCTION createInsertValues (mystring_old VARCHAR(1000), delimiter VARCHAR(50), maxValues INT)
+RETURNS VARCHAR
+BEGIN
+  DECLARE myInsertValues VARCHAR(500);
+  DECLARE value VARCHAR(500);
+  DECLARE firstIteration BOOLEAN;
+  DECLARE mystring VARCHAR(500);
+  DECLARE delimiterextra VARCHAR(500);
+
+  SET delimiterextra = '''';
+  -- cas particulier : si on a ;; ou le transforme en ;-;
+  SET mystring  = REGEXP_REPLACE(mystring_old,''||delimiter||delimiter||'',''||delimiter||'-'||delimiter||'');
+  --print_debug(mystring_n);
+  -- trim() : supprime les espaces avant et après
+  SET myInsertValues  = 'VALUES (';
+  SET firstIteration  =TRUE; -- on ajoute la virgule après la 1er itération ( après avoir récupérer la 1er colonnes)
+  FOR i IN
+   (SELECT trim(regexp_substr(mystring, '[^'||delimiter||']+', 1, LEVEL)) mot
+   FROM dual
+   CONNECT BY LEVEL <= maxValues+1)
+   -- on peut remplacer nbrDelimiteur par regexp_count(MotsCles, delimiter)
+   LOOP
+      IF i.mot is null THEN
+        SET value = 'null';
+      ELSIF i.mot = '-' OR UPPER(i.mot) = 'NULL' THEN
+       SET value = 'null';
+      ELSE
+        SET value = REGEXP_REPLACE(i.mot,''||delimiterextra||'','');
+        SET value =''''|| value ||'''';
+        
+
+      END IF;
+
+      IF firstIteration = TRUE THEN
+        SET myInsertValues = CONCAT(myInsertValues , value);
+        SET firstIteration = FALSE;
+      ELSE
+          SET myInsertValues = CONCAT(myInsertValues ,', ',value);
+      END IF;
+
+   END LOOP;
+   SET myInsertValues = CONCAT(myInsertValues , ' )');
+   --print_debug(myInsertValues);
+
+   -- insertion les données
+    RETURN (myInsertValues);
+END $$
+
+*/
+
+
+
 DELIMITER ;
 
 #------------------------------------------------+
