@@ -20,7 +20,7 @@ def getSemanticType(string):
 	)
 	curs = tmpdb.cursor()
 
-	curs.execute("select SUBTYPE, TYPE, CATEGORY, SUBCATEGORY, REGULAREXPRESSION from DDRE")
+	curs.execute("select SUBTYPE, TYPE, CATEGORY, SUBCATEGORY, REGULAREXPRESSION from DDRE WHERE REGULAREXPRESSION = \'([0-2][0-9]|3[0-1])(-|/)(0[0-9]|1[0-2])(-|/)[0-9]{4}\'")
 
 	res = curs.fetchall()
 
