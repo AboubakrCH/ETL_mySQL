@@ -2,6 +2,7 @@ import csv
 import time 
 import connection_mysql
 import config
+from datetime import datetime
 
 
 DB = 'csvtotab'
@@ -14,6 +15,7 @@ def open_csvfile(path_file, delimiter):
 		for row in csv_reader:
 			line = {}
 			line = {'REFERENCE':'CSVFILE_{}'.format("__".join(row))}
+			line = {'REFERENCE':'CSVFILE_'}
 			i = 1
 			for v in row : 
 				line['COL{}'.format(i)]= v
@@ -38,7 +40,6 @@ def create_table(nbr_column, table_name):
 	for i in range(nbr_column-1):
 		sql_create+='COL{} tinytext,'.format(i+1)
 	sql_create+='COL{} tinytext)'.format(nbr_column)
-	print(sql_create)
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
 	with connection.cursor() as cursor:
 		cursor.execute('SET SESSION wait_timeout=8000;')
@@ -62,21 +63,49 @@ def _escape_name(s):
    """
    return '`{}`'.format(s.replace('`', '``'))
 
+def update_data(nbr_column, data):
+	all_data = []
+	for element in data:
+		struct = tab_struct(nbr_column)
+		for key in struct :
+			struct[key]= element[key] if key in element else ''
+		all_data.append(struct)
+	return all_data
+
 def insert_db(nbr_column, data):
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
-	print(data)
 	sql = _generate_query(tab_struct(nbr_column), table_name)
-	print(sql)
 	with connection.cursor() as cursor:
 			cursor.execute('SET SESSION wait_timeout=8000;')
-			l = cursor.executemany(sql,(data))
+			l = cursor.executemany(sql,data)
 	connection.commit()
 	connection.close()
+
+def create_DR_CSVFILE_COL(nbr_column):
+	print("create create_DR_CSVFILE_COL")
+
+	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
+	for i in range(nbr_column):
+		sql_delete = 'DROP TABLE DR_CSVFILE_COL{}'.format(i+1)
+		sql_create = 'CREATE TABLE DR_CSVFILE_COL{} (REFERENCE tinytext,	OLDVALUES tinytext,	SYNTACTICTYPE tinytext,	COLUMNWIDTH tinytext, NUMBEROFWORDS tinytext, OBSERVATION 	tinytext   , NEWVALUES	tinytext    ,SEMANTICCATEGORY	tinytext,   SEMANTICSUBCATEGORY tinytext)'.format(i+1)
+		with connection.cursor() as cursor:
+			cursor.execute('SET SESSION wait_timeout=8000;')
+			t = cursor.execute(sql_delete)
+			e = cursor.execute(sql_create)
+			l = cursor.execute('select COL{} from {}'.format(i+1, table_name))
+			myresult = cursor.fetchall()
+			for x in myresult:
+				#query_insert = 'INSERT INTO DR_CSVFILE_COL{} (REFERENCE,OLDVALUES,COLUMNWIDTH, NUMBEROFWORDS) VALUES ( '''CSVfile_{}_Col{}''', '''{}''', '''{}''', '''{}''' )'.format(i+1,str(datetime.today().date()),i+1, x['COL{}'.format(i+1)], str(len(x['COL{}'.format(i+1)])), str(len(str(x['COL{}'.format(i+1)]).split(' '))
+				#q = cursor.execute(query_insert)
+				#print(query_insert)
+				print(x)
+
 
 def main():
 	nbr_column, data = open_csvfile(path_file='csvfile.csv',delimiter=';')
 	create_table(nbr_column, table_name)
-	insert_db(nbr_column, data)
+	insert_db(nbr_column, update_data(nbr_column, data))
+	create_DR_CSVFILE_COL(nbr_column)
 
 
 main()
