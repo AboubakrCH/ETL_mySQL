@@ -89,13 +89,9 @@ def fetch_m(curs,i):
 	curs.execute("")
 
 	query = "INSERT INTO DR_CSVFile_TabCol VALUES('CSV_File_{}','Col{}' ,'Col{}_{}',".format(date.today(),i,i,i,m114[0])
-	print("1")
 	query = query + " {}, {}, {}, {}, {},".format(m000[0],m100[0],m101[0],m102[0],m103[0])
-	print("2")
 	query = query + " {}, {}, {}, {}, {},".format(m104[0],m105[0],m106[0],m107[0],m108[0])
-	print("3")
 	query = query + " {}, {}, '{}', {}, {},".format(m109[0],m110[0],m111[0],m112[0],m113[0])
-	print("4")
 	query = query + " '{}', {}, {})".format(m114[0],m115[0],m116[0])
 	#print(query)
 
