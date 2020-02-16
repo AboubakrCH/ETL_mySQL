@@ -17,7 +17,11 @@ def create_m0_table():
 	curs = tmpdb.cursor()
 
 	curs.execute("drop table DR_CSVFILE_TabCol")
-	curs.execute("create table DR_CSVFILE_TabCol( REFERENCE TinyText, OLDNAME TinyText, NEWNAME TinyText, M00 INT, M100 INT, M101 INT, M102 INT, M103 INT, M104 INT, M105 INT, M106 INT, M107 INT, M108 INT, M109 INT, M110 INT, M111 TinyText, M112 INT, M113 INT, M114 TinyText, M115 INT, M116 INT )")
+
+	query = "create table DR_CSVFILE_TabCol( REFERENCE TinyText, OLDNAME TinyText, NEWNAME TinyText,"
+	query = query + " M00 INT, M100 INT, M101 INT, M102 INT, M103 INT, M104 INT, M105 INT, M106 INT, M107 INT, M108 INT, M109 INT, M110 INT, M111 TinyText,"
+	query = query + "M112 INT, M113 INT, M114 TinyText, M115 INT, M116 INT )"
+	curs.execute(query)
 
 	tmpdb.close()
 
