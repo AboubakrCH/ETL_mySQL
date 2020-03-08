@@ -118,7 +118,7 @@ def create_DR_CSVFILE_COL(nbr_column):
 			myresult = cursor.fetchall()
 			for x in myresult:
 				OLDVALUES = x["COL{}".format(i+1)]
-				type_ = get_type(OLDVALUES) if len(OLDVALUES) else ("UNKOWN","UNKOWN")
+				type_ = get_type(OLDVALUES) if len(OLDVALUES) else ("UNKNOWN","UNKNOWN")
 				SYNTACTICTYPE ,SUBSYNTACTICTYPE = type_[0], type_[1]
 				#print(x["COL{}".format(i+1)] ," ---> ", SYNTACTICTYPE)
 				query_insert = 'INSERT INTO DR_CSVFILE_COL_{} (REFERENCE, OLDVALUES, SYNTACTICTYPE,SUBSYNTACTICTYPE, COLUMNWIDTH, NUMBEROFWORDS) VALUES ( "CSVfile_{}_Col{}", "{}", "{}", "{}" , "{}", "{}" )'.format(i+1,str(datetime.today().date()),i+1, OLDVALUES, SYNTACTICTYPE, SUBSYNTACTICTYPE, str(len(OLDVALUES)), str(len(str(OLDVALUES).split(" "))))
@@ -139,7 +139,7 @@ def get_type(txt):
 			x = re.match(regex, txt)
 			if x : 
 				return type_,subtype
-	return "UNKOWN","UNKOWN"
+	return "UNKNOWN","UNKNOWN"
 
 #-------------------------------------------BOOBA ---------------------------
 
@@ -222,11 +222,11 @@ def check_sementique(tabnum) :
 					found= True
 					connection.commit()
 			if not found : 
-				#Unknown
-				mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES = "{}"'.format(tabnum,"Unknown","Unknown",data["OLDVALUES"]))
+				#UNKNOWN
+				mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES = "{}"'.format(tabnum,"UNKNOWN","UNKNOWN",data["OLDVALUES"]))
 				connection.commit()
 		else :
-			mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES is null'.format(tabnum,"Unknown","Unknown"))
+			mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES is null'.format(tabnum,"UNKNOWN","UNKNOWN"))
 			connection.commit()
 	connection.close()
 
@@ -394,11 +394,18 @@ def clean_quote(data):
 
 	for x in data:
 		for key in x:
-			x[key] = x[key].replace("''","'")
-			x[key] = x[key].replace('"',"''")
+			x[key] = x[key].replace("''","'") # we first replace all '' by a single ' as it in most case it's an error
+			x[key] = x[key].replace('"',"''") # here we replace " by '' as it will create error in mysql querries
 		corrected_data.append(x)
 
 	return corrected_data
+
+def FtoCelcius(m):
+	return (m - 32)*(5/9)
+
+def CtoFahrenheit(m):
+	return (m*(9/5))+32
+
 
 
 
