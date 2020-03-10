@@ -1,13 +1,15 @@
 import re
-txt =  "3FAHRENHEIT"
-regex= '^[0-9][0-9]?°F|[0-9][0-9]?°?FAHRENHEIT|[0-9][0-9]?°?Fahrenheit$'
+from REGEXsPRES import DDRE
+txt =  "s-é"
+regexx= "^[a-zA-Zàâçéèêëîïôûùüÿñæœ_+ -]+$"
 def get_type():
-	x = re.match(regex, txt)
+
+	x = re.match(regexx, txt)
 	if x : 
-		print(' YES')
+		print('yes')
+
 	else: 
-		print("NOO")
+		print("XXXX NOT ")
 
 get_type()
-
 

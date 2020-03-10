@@ -1,0 +1,8 @@
+HOST_MYSQL = '127.0.0.1'
+USER_MYSQL = 'root'
+PASSWD_MYSQL = 'root'
+PORT = 8889
+
+
+
+
