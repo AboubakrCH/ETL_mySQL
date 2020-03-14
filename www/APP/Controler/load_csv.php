@@ -22,7 +22,7 @@
 
 						$output = exec("C:\Users\bckha\AppData\Local\Programs\Python\Python38\python ../../csvTOtab/csvtotab.py 2>&1");
 						echo $output;
-						sleep(10);
+						#sleep(10);
 						header('Location: resultat.php');
 					} else {
 						$erreur = "Erreur format fichier";

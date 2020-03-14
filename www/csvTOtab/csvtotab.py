@@ -12,7 +12,8 @@ table_name = "CSV2TABCOLUMNS"
 def open_csvfile(path_file, delimiter):
 	data = []
 	max_column=0
-	with open(path_file) as csv_file:
+	with open(path_file, encoding = 'utf8') as csv_file:
+		print("Reading with encoding of utf8")
 		csv_reader = csv.reader(csv_file, delimiter=delimiter)
 		for row in csv_reader:
 			line = {}
@@ -156,7 +157,7 @@ def get_dominant_any(tabname,col_name):
 def get_type_dominant(tabnum):
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, port= config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
 	mycursor = connection.cursor()
-	_query = "SELECT  SUBSYNTACTICTYPE,COUNT(SUBSYNTACTICTYPE) AS value_occur FROM  DR_CSVFILE_COL_{} GROUP BY SUBSYNTACTICTYPE ORDER BY value_occur DESC".format(tabnum)
+	_query = "SELECT  SUBSYNTACTICTYPE,COUNT(SUBSYNTACTICTYPE) AS value_occur FROM  DR_CSVFILE_COL_{} GROUP BY SUBSYNTACTICTYPE HAVING SUBSYNTACTICTYPE NOT LIKE 'UNKNOWN' ORDER BY value_occur DESC".format(tabnum)
 	mycursor.execute(_query)
 	tables = mycursor.fetchone()
 	connection.close()
@@ -204,31 +205,47 @@ def check_sementique(tabnum) :
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, port= config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
 	mycursor = connection.cursor()
 
-	mycursor.execute("select OLDVALUES from DR_CSVFILE_COL_{}".format(tabnum))
+	mycursor.execute('select OLDVALUES from DR_CSVFILE_COL_{}'.format(tabnum))
 	old_lst = mycursor.fetchall()
-	mycursor.execute("select * from REGULAREXP")# i DDRE REGULAR by REGULAREXP
+	mycursor.execute('select * from DDRE')# i DDRE REGULAR by REGULAREXP
 	regex_lst = mycursor.fetchall()
 	mycursor2 = connection.cursor()
 	for data in old_lst :
-		if data["OLDVALUES"] != None :
+		if data['OLDVALUES'] != None :
 			found=False
 			for reg in regex_lst :
-				if re.match(reg["regex"],data["OLDVALUES"]):# i changed REGULAR by regex
+				if re.match(reg['regex'],data['OLDVALUES'].upper()):# i changed REGULAR by regex
 					#update value
-					query= 'UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES = "{}" '.format(tabnum,reg["type"],reg["subtype"],data["OLDVALUES"])
+					query= "UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= '{}', SEMANTICSUBCATEGORY = '{}' where OLDVALUES = '{}' ".format(tabnum,reg['cat'],reg['subcat'],data['OLDVALUES'])
 
 					mycursor.execute(query)
 					#print(query)
 					found= True
 					connection.commit()
-			if not found : 
-				#UNKNOWN
-				mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES = "{}"'.format(tabnum,"UNKNOWN","UNKNOWN",data["OLDVALUES"]))
-				connection.commit()
+			if not found :
+
+				test = mycursor2.execute('select OLDVALUES,COUNT(OLDVALUES) as CB FROM DR_CSVFILE_COL_{} WHERE OLDVALUES="{}" GROUP BY OLDVALUES having soundex(OLDVALUES) IN (select soundex(FRENCH) from DDVS)'.format(tabnum,data['OLDVALUES']))
+				
+				if test != 0 :
+					res = mycursor2.fetchone() 
+					if res['CB'] > 0:
+						mycursor2.execute('select CATEGORY from DDVS where SOUNDEX(FRENCH) = SOUNDEX("{}")'.format(data['OLDVALUES']))
+						subtype = mycursor2.fetchone()
+						#print(tabnum,' ',subtype['CATEGORY'])
+						query= "UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= '{}', SEMANTICSUBCATEGORY = '{}' where OLDVALUES = '{}' ".format(tabnum,'VARCHAR',subtype['CATEGORY'],data['OLDVALUES'])
+						mycursor2.execute(query)
+					else: 
+						#UNKNOWN
+						mycursor.execute("UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= '{}', SEMANTICSUBCATEGORY = '{}' where OLDVALUES = '{}'".format(tabnum,'VARCHAR','UNKNOWN',data['OLDVALUES']))
+						connection.commit()
+				else:
+					mycursor.execute("UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= '{}', SEMANTICSUBCATEGORY = '{}' where OLDVALUES = '{}'".format(tabnum,'UNKNOWN','UNKNOWN',data['OLDVALUES']))
+					connection.commit()
+
 		else :
-			mycursor.execute('UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= "{}", SEMANTICSUBCATEGORY = "{}" where OLDVALUES is null'.format(tabnum,"UNKNOWN","UNKNOWN"))
+			mycursor.execute("UPDATE DR_CSVFILE_COL_{} SET SEMANTICCATEGORY= '{}', SEMANTICSUBCATEGORY = '{}' where OLDVALUES is null".format(tabnum,'NULL','NULL'))
 			connection.commit()
-	connection.close()
+
 
 def update_DR_CSVFILE_COL(nbr_column):
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, port= config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
@@ -406,8 +423,108 @@ def FtoCelcius(m):
 def CtoFahrenheit(m):
 	return (m*(9/5))+32
 
+#-------------------- rebuild the csv table -----------------
+
+def rebuild_csv_table(nbr_table, table_name):
+	connection = connection_mysql.connection_db(host=config.HOST_MYSQL,port=config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
+	create_table_csv = 'CREATE TABLE {} ('.format(table_name)
+	a = '('
+	with connection.cursor() as cursor:
+		colomntypes = []
+		cursor.execute('select OLDNAME, NEWNAME as colName, M103 as colSize, M111 as colType from DR_CSVFILE_TabCol')
+		myresult = cursor.fetchall()
+
+		for row in myresult : 
+			
+			colomntypes.append(row['colType'])
+			col_name = row['OLDNAME']+'_'+row['colName']
+			a = a + col_name + ','
+
+			if row['colType'] == 'NUMBER':
+				col_type ='INT'
+			elif row['colType'] == 'UNKNOWN':
+				col_type = 'VARCHAR'
+			else:
+				col_type = row['colType']
+
+			col_size = str(row['colSize'])
+
+			col = col_name+' '+col_type+'('+col_size+')' if  col_type!='DATE' and col_type!='INT' else  col_name+' '+col_type
+			
+			create_table_csv=create_table_csv + '{} ,'.format(col)
+
+		create_table_csv = create_table_csv[:len(create_table_csv)-1]+' )'
+		c = cursor.execute('INSERT INTO meta_csvtotab values("{}")'.format(table_name))
+		#print(create_table_csv,'\n\n')
+		b = cursor.execute(create_table_csv)
+		a = a[:len(a)-1]+')'
+	sql_insert_newcsvtable = 'INSERT INTO {}  {} values ('.format(table_name, a)
+	data = []
+
+	for i in range(nbr_table):
+		sql = 'SELECT NEWVALUES  from DR_CSVFILE_COL_{}'.format(i+1)
+		with connection.cursor() as cursor:
+			cursor.execute('SET SESSION wait_timeout=8000;')
+			b = cursor.execute(sql)
+			myresult = cursor.fetchall()
+			j = 0
+			for values in myresult:
+				value= values['NEWVALUES'] if 'Anomaly' not in values['NEWVALUES'] else 'NULL' 
+				value = '"'+value+'"' if 'VARCHAR' in colomntypes[i]  else value 
+				value = "'"+str(datetime.strptime(value, '%d-%m-%Y').date())+"'" if ('DATE' in colomntypes[i] and len(value) > 8) else value
+				#print(value)
+				if i  == 0 :
+					data.append(sql_insert_newcsvtable + value  + ' ,') 
+				else : 
+					data[j] = data[j] + value + ' ,'
+					j+=1
+	if len(data):
+		for d in data : 
+			with connection.cursor() as cursor:
+				query_ = d[:len(d)-1]+')'
+				#print(d[:len(d)-1])
+				#print(query_)
+				cursor.execute(query_)
+		connection.commit()	
 
 
+# ----------------------------- LUDO ------------------------
+  
+def generateDependencies(table_name):
+    # SQL 
+	connection = connection_mysql.connection_db(host=config.HOST_MYSQL,port=config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
+	selected_values = ' COLUMN_NAME '
+	where_conditions = " where TABLE_NAME like  '%"+table_name+"%' "
+
+	sql = 'SELECT ' + selected_values + ' FROM information_schema.columns ' + where_conditions 
+
+	sqlcreate = " CREATE TABLE DR_SemanticDependencies(TableName VARCHAR(100),  LEFTCOL VARCHAR(2000),SEMANTICDEPENDENCY VARCHAR(4),RIGHTCOL VARCHAR(500),PERCENTAGE NUMERIC )"
+	sql_insert_in_meta = "INSERT INTO meta_csvtotab values('DR_SemanticDependencies')"
+
+
+	# Execute query.
+	cursor = connection.cursor()
+	cursor.execute(sql)
+	records = cursor.fetchall()
+	cursor.execute(sqlcreate)    
+	cursor.execute(sql_insert_in_meta)    
+
+
+	for row_left in records:
+	    col_left = row_left['COLUMN_NAME']
+	    for row_right in records:
+	        col_right = row_right['COLUMN_NAME']
+	        if(col_left.upper() != col_right.upper() ):
+	            #print(col_left + ' -- '+ col_right)
+	            args = (table_name,'DR_SemanticDependencies',col_left,col_right,0);
+	            cursor_2 = connection.cursor()
+	            cursor_2.callproc('VERIFDF', args)
+	    #print('--------------')
+	args = (table_name,'DR_SemanticDependencies');
+	cursor_3 = connection.cursor()
+	cursor_3.callproc('COMBINING_LEFTCOL', args)
+
+	connection.commit()
 
 # ----------------------------- MAIN ------------------------
 def main():
@@ -415,7 +532,7 @@ def main():
 	print('\n\n######  STARTED  ######')
 
 	print('etape 1: préparation des données:')
-	nbr_column, data = open_csvfile(path_file="C:/wamp64/www/APP/file_uploaded/csvfile.csv",delimiter=";")
+	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=";")
 	print('Recherche de double pure:')
 	data = clean_pure_double(data)
 	print('Recherche de guillemet')
@@ -444,6 +561,18 @@ def main():
 	print('profiling: profiling des données')
 	create_m0(nbr_column)
 
+	print('Finalisation: création de la table final')
+	rebuild_csv_table(nbr_table=nbr_column, table_name = "NEWCSV2TABCOLUMNS")
+
+	print('Dépendance Fonctionnelles')
+	# 1. faire un source du fichier DR_semantiqueDep.sql dans mysql
+	# source DR_semantique.sql
+
+	generateDependencies(table_name = 'NEWCSV2TABCOLUMNS')
+    #data_DR = getTable(table_name = 'DR_SemanticDependencies')
+    #print(data_DR) 
+
+    # 2. le résultat est dans la table 'DR_SemanticDependencies'
 
 	print('\nFINISHED IN {} SECONDS\n'.format(round(time.time()-started_time,2)))
 	

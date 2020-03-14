@@ -1,17 +1,99 @@
+import connection_mongo
+import config
+import json
+from pprint import pprint
 
-REGEXPRES=[
-['NUMBER','INTEGER','^[0-9]+$'],
-['NUMBER','FLOAT','^[0-9]+.[1-9][0-9]*$'],
-['DATE','DATE','^([0-2][0-9]|3[0-1])-(0[0-9]|1[0-2])-[0-9]{4}$'],
-['VARCHAR','ALPHABETHIQUE','^[a-zA-Z_+]+$'],
-['VARCHAR','ALPHANUMRIQUE','^[a-zA-Z0-9_°,-_+èéà]+$'],
-]
+DB='csvtotab'
+'''
+with open('regularexp.json', encoding = 'utf8') as json_file:
+	REGEXPRES = json.load(json_file)
 
-DDRE=[
-['EMAIL','EMAIL',"^[A-Za-z][A-Za-z0-9]*@[a-zA-Z0-9]+.(FR|fr|COM|com|[a-zA-Z]+)$"],
-['DATE','DATE_FRENCH','^([0-2][0-9]|3[0-1])(-|/)(0[0-9]|1[0-2])(-|/)[0-9]{4}$'],
-['DATE','DATE_ENGLISH','^(0[0-9]|1[0-2])(-|/)([0-2][0-9]|3[0-1])(-|/)[0-9]{4}$'],
-['CIVILITY','CIVILITY_FR','^(M.|MME|MLLE|MONSIEUR|MADAME|MADEMOISELLE)$'],
-['CIVILITY','CIVILITY_EN','^(M.|MRS|MS|MISTER|MISS)$'],
-['BLOODGROUP', 'BLOODGROUP', '^((A|B|AB|O){1}[+-]{1})$'],
-]
+with open('ddre.json', encoding = 'utf8') as json_file:
+	DDRE = json.load(json_file)
+
+with open('ddvs.json', encoding = 'utf8') as json_file:
+	DDVS = json.load(json_file)
+'''
+JSONFILE = [
+			['regularexp.json','regex'],
+			['ddre.json','ddre'],
+			['ddvs.json','ddvs']
+			]
+
+def update_regex(dbtype):
+	if dbtype == 'mongodb':
+		db = connection_mongo.connection_db(host=config.HOST_MONGO, port= config.PORT_MONGO, database = 'csvtotab')
+		col_list = db.list_collection_names()
+
+		for file in JSONFILE:
+
+			if file[1] in col_list:
+				col = db[file[1]]
+				col.drop()
+
+
+			with open(file[0], encoding = 'utf8') as json_file:
+				col = db[file[1]]
+				col.insert_many(json.load(json_file))
+			
+'''
+#Here is what the code above does
+		if 'ddre' in col_list:
+			col = db['ddre']
+			col.drop()
+
+		col = db['ddre']
+		col.insert_many(DDRE)
+
+		if 'regex' in col_list:
+			col = db['regex']
+			col.drop()
+
+		col = db['regex']
+		col.insert_many(REGEXPRES)
+
+		if 'ddvs' in col_list:
+			col = db['ddvs']
+			col.drop()
+
+		col = db['ddvs']
+		
+		col.insert_many(DDVS)
+
+'''
+
+
+
+
+def LD(s, t):
+    if s == "":
+        return len(t)
+    if t == "":
+        return len(s)
+    if s[-1] == t[-1]:
+        cost = 0
+    else:
+        cost = 1
+       
+    res = min([LD(s[:-1], t)+1,
+               LD(s, t[:-1])+1, 
+               LD(s[:-1], t[:-1]) + cost])
+
+    return res
+
+def test():
+	#print(LD("Python", "Peithen"))	
+	client = connection_mongo.connection_client(host=config.HOST_MONGO, port=config.PORT_MONGO)
+
+	testdb = client['csvtotab']
+
+	print(testdb.list_collection_names())
+
+	update_regex('mongodb')
+
+
+	print(testdb.list_collection_names())
+
+test()
+
+
