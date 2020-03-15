@@ -9,6 +9,7 @@ from datetime import date
 
 DB = "csvtotab"
 table_name = "CSV2TABCOLUMNS"
+
 def open_csvfile(path_file, delimiter):
 	data = []
 	max_column=0
@@ -89,6 +90,7 @@ def create_table(nbr_column, table_name):
 def insert_db(nbr_column, data):
 	connection = connection_mysql.connection_db(host=config.HOST_MYSQL, port= config.PORT, password=config.PASSWD_MYSQL, user=config.USER_MYSQL, db=DB)
 	sql = _generate_query(tab_struct(nbr_column), table_name)
+	print(sql)
 	with connection.cursor() as cursor:
 			cursor.execute("SET SESSION wait_timeout=8000;")
 			l = cursor.executemany(sql,data)
@@ -564,11 +566,11 @@ def main():
 	print('Finalisation: création de la table final')
 	rebuild_csv_table(nbr_table=nbr_column, table_name = "NEWCSV2TABCOLUMNS")
 
-	print('Dépendance Fonctionnelles')
+	#print('Dépendance Fonctionnelles')
 	# 1. faire un source du fichier DR_semantiqueDep.sql dans mysql
 	# source DR_semantique.sql
 
-	generateDependencies(table_name = 'NEWCSV2TABCOLUMNS')
+	#generateDependencies(table_name = 'NEWCSV2TABCOLUMNS')
     #data_DR = getTable(table_name = 'DR_SemanticDependencies')
     #print(data_DR) 
 
