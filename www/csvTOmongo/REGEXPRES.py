@@ -22,7 +22,7 @@ JSONFILE = [
 
 def update_regex(dbtype):
 	if dbtype == 'mongodb':
-		db = connection_mongo.connection_db(host=config.HOST_MONGO, port= config.PORT_MONGO, database = 'csvtotab')
+		db, client = connection_mongo.connection_db(host=config.HOST_MONGO, port= config.PORT_MONGO, database = 'csvtotab')
 		col_list = db.list_collection_names()
 
 		for file in JSONFILE:
@@ -35,6 +35,7 @@ def update_regex(dbtype):
 			with open(file[0], encoding = 'utf8') as json_file:
 				col = db[file[1]]
 				col.insert_many(json.load(json_file))
+		client.close()
 			
 '''
 #Here is what the code above does

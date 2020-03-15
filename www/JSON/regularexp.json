@@ -3,5 +3,5 @@
 {"type":"NUMBER","subtype":"FLOAT","regex":"^[0-9]+.[1-9][0-9]*$"},
 {"type":"DATE","subtype":"DATE","regex":"^([0-2][0-9]|3[0-1])-(0[0-9]|1[0-2])-[0-9]{4}$"},
 {"type":"VARCHAR","subtype":"ALPHABETHIQUE","regex":"^[a-zA-Zàâçéèêëîïôûùüÿñæœ_+.@ -]+$"},
-{"type":"VARCHAR","subtype":"ALPHANUMRIQUE","regex":"^[a-zA-Z0-9°àâçéèêëîïôûùüÿñæœ_+.,@ -]+$"}
+{"type":"VARCHAR","subtype":"ALPHANUMERIQUE","regex":"^[a-zA-Z0-9°àâçéèêëîïôûùüÿñæœ_+.,@ -]+$"}
 ]

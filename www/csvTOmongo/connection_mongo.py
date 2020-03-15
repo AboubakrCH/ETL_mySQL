@@ -12,7 +12,7 @@ def connection_db(host, port, database):
     try:
         client = pymongo.MongoClient(host=host, port=port)
         db = client[database]
-        return db
+        return db, client
     except Exception as E:
         print(str(E))        
 
