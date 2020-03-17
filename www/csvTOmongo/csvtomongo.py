@@ -416,7 +416,7 @@ def main():
 	started_time = time.time() 
 	print('\n\n######  STARTED  ######')
 
-	#'''
+	'''
 	print('etape 1: préparation des données:')
 	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=";")
 	#pprint(data)
