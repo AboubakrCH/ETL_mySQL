@@ -117,7 +117,7 @@ def get_type(txt):
 		regex = element['regex']
 
 		x = re.match(regex, txt)
-		if x : 
+		if x :
 			client.close()
 			return type_,subtype
 
@@ -140,6 +140,45 @@ def get_type_dominant(tabnum):
 			max = element['count']
 			dominant = element['_id']
 
+	client.close()
+	return dominant
+
+def get_semantic_dominant(tabnum):
+	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
+	col_i = db['DR_CSVFILE_COL_{}'.format(tabnum)]
+
+	query = [{ '$group' : {'_id' : '$SEMANTICCATEGORY', 'count': {'$sum' : 1}}},
+			 {'$match' : {'SEMANTICCATEGORY' : {'$ne' : 'NULL' }} }]
+
+	res = col_i.aggregate(query)
+
+	dominant = ''
+	max = -1
+	for element in res:
+		if element['count'] > max:
+			max = element['count']
+			dominant = element['_id']
+
+	client.close()
+	return dominant
+
+def get_subsemantic_dominant(tabnum):
+	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
+	col_i = db['DR_CSVFILE_COL_{}'.format(tabnum)]
+
+	query = [{ '$group' : {'_id' : '$SEMANTICSUBCATEGORY', 'count': {'$sum' : 1}}},
+			 {'$match' : {'SEMANTICSUBCATEGORY' : {'$ne' : 'NULL' }} }]
+
+	res = col_i.aggregate(query)
+
+	dominant = ''
+	max = -1
+	for element in res:
+		if element['count'] > max:
+			max = element['count']
+			dominant = element['_id']
+
+	client.close()
 	return dominant
 
 def detect_anomaly(num):
@@ -149,13 +188,13 @@ def detect_anomaly(num):
 	dominant = get_type_dominant(num)
 
 	for element in col.find():
-		if element['SUBSYNTACTICTYPE'] != dominant:
-			id = { '_id' : element['_id'] }
-			update = { '$set' : {'OBSERVATION' : "{}<?>Anomaly_WrongType".format(element['OLDVALUES'])}}
-			col.update_one(id,update)
-		elif element['SUBSYNTACTICTYPE'] == "":
+		if element['OLDVALUES'] == "" or element['OLDVALUES'].upper() == "NULL":
 			id = { '_id' : element['_id'] }
 			update = { '$set' : {'OBSERVATION' : "NULL<?>Anomaly"}}
+			col.update_one(id,update)
+		elif element['SUBSYNTACTICTYPE'] != dominant:
+			id = { '_id' : element['_id'] }
+			update = { '$set' : {'OBSERVATION' : "{}<?>Anomaly_WrongType".format(element['OLDVALUES'])}}
 			col.update_one(id,update)
 		else:
 			id = { '_id' : element['_id'] }
@@ -239,6 +278,115 @@ def clean_pure_double(data):
 
 	return noneDupData
 
+def fetch_m(num, db_name):
+	db,client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = db_name)
+	col = db['DR_CSVFILE_COL_{}'.format(num)]
+
+	M000 = col.count_documents({})
+	M100 = col.count_documents({'OBSERVATION' : "NULL<?>Anomaly"})
+	#M101 = col.count_documents({'OBSERVATION' : {'$ne':"NULL<?>Anomaly"}})
+	M101 = M000 - M100
+
+	tmp = col.find({},{'COLUMNWIDTH' : 1, '_id': 0})
+
+
+	M102 = tmp.sort('COLUMNWIDTH' , 1).limit(1)
+	M103 = tmp.sort('COLUMNWIDTH' ,-1).limit(1)
+
+	M102 = M102[0]['COLUMNWIDTH']
+	M103 = M103[0]['COLUMNWIDTH']
+
+	M104 = 0
+
+	tmp = col.find({},{'NUMBEROFWORDS' : 1, '_id': 0}).sort('NUMBEROFWORDS' , -1).limit(1)
+
+	if tmp[0]['NUMBEROFWORDS'] > M104 and col.count_documents({'NUMBEROFWORDS' : {'$gt': 0}}) > 0:
+		M104 = tmp[0]['NUMBEROFWORDS']
+
+	#tmp = col.find({},{'SYNTATICTYPE' : 1, '_id':0})
+	#replace this part with an automated count of the syntactic type#
+	list = []
+	M105 = col.count_documents({'SYNTATICTYPE' : 'VARCHAR'})
+	list.append([M105,"VARCHAR"])
+	M106 = col.count_documents({'SYNTATICTYPE' : 'NUMBER'})
+	list.append([M106,"NUMBER"])
+	M107 = col.count_documents({'SYNTATICTYPE' : 'DATE'})
+	list.append([M107,"DATE"])
+	M108 = col.count_documents({'SYNTATICTYPE' : 'BOOLEAN'})
+	list.append([M108,"BOOLEAN"])
+	M109 = col.count_documents({'SYNTATICTYPE' : 'NULL'})
+	#list.append(M109) We don't want a null type column
+
+
+	M110 = len(col.distinct('OLDVALUES'))
+
+	M111 = "VARCHAR"
+	max = M105
+	for x in list:
+		if max < x[0]:
+			max = x[0]
+			M111 = x[1]
+
+
+	M112 = col.count_documents({'OBSERVATION' : {'$ne' : ''}})
+	M113 = M000 - M112
+
+	M114 = get_semantic_dominant(num)
+
+	M115 = col.count_documents({'SEMANTICCATEGORY' : {'$ne' : M114}})
+	M116 = col.count_documents({'SEMANTICCATEGORY' : {'$eq' : M114}})
+
+	M117 = get_subsemantic_dominant(num)
+
+	M118 = col.count_documents({'SEMANTICSUBCATEGORY' : {'$ne' : M117}})
+	M119 = col.count_documents({'SEMANTICSUBCATEGORY' : {'$eq' : M117}})
+
+
+
+	data = {
+			"Nbr of values" : M000,
+			"Nbr of not null values" : M100,
+			"Nbr of null values" : M101,
+			"Max column width" : M102,
+			"Min column width" : M103,
+			"Max number of word" : M104,
+			"Nbr of VARCHAR" : M105,
+			"Nbr of NUMBER" : M106,
+			"Nbr of DATE" : M107,
+			"Nbr of BOOLEAN" : M108,
+			"Nbr of NULL" : M109,
+			"Nbr of distinct value" : M110,
+			"Dominant Sytactic type" : M111,
+			"Nbr of empty OBSERVATION" : M112,
+			"Nbr of OBSERVATION" : M113,
+			"Dominant semantic" : M114,
+			"Nbr of ne semantic" : M115,
+			"Nbr of eq semantic" : M116,
+			"Dominant sub semantic" : M117,
+			"Nbr of ne sub semantic" : M118,
+			"Nbr of eq sub semantic" : M119
+			}
+
+
+	return data
+	client.close()
+
+def create_m0(nbr_column, db_name):
+	db, client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = db_name)
+	meta = db['meta_csvtotab']
+	meta.insert_one({'table_name' : 'DR_CSVFILE_TabCol'})
+
+
+	col = db['DR_CSVFILE_TabCol']
+
+	for i in range(nbr_column):
+		data = fetch_m(i+1,db_name)
+		col.insert_one(data)
+
+
+	client.close()
+
+
 def clean_quote(data):
 
 	corrected_data = []
@@ -268,6 +416,7 @@ def main():
 	started_time = time.time() 
 	print('\n\n######  STARTED  ######')
 
+	#'''
 	print('etape 1: préparation des données:')
 	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=";")
 	#pprint(data)
@@ -290,8 +439,21 @@ def main():
 	print('profiling: analyse des colonnes')
 	update_DR_CSVFILE_COL(nbr_column)
 	
+	print('profiling: profiling des données')
+	create_m0(nbr_column,DB)
+	'''
+	#test part
+	db,client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = DB)
+	col = db['DR_CSVFILE_COL_{}'.format(4)]
+	x = len(col.distinct('OLDVALUES'))
+	#x = x.sort('COLUMNWIDTH', 1).limit(1)
+	pprint(col.count_documents({'NUMBEROFWORDS' : {'$gt' : 0}}))
+	show_mongo_collections(DB)
+	#for e in x:
+	#	pprint(e)
 
-
+	client.close()
+	#'''
 	print('\nFINISHED IN {} SECONDS\n'.format(round(time.time()-started_time,2)))
 
 main()
