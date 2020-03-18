@@ -66,7 +66,7 @@ $i=1;
 
 		if (strpos($row_tt_tables['table_name'], 'DR_CSVFILE_COL_') !== false) {
 
-			#for tupes 
+			#for types 
 			$types = $dbh->prepare("SELECT COUNT('SYNTACTICTYPE') AS NBR FROM {$row_tt_tables['table_name']} WHERE SYNTACTICTYPE = ? ");
 
 			$types->execute(array('VARCHAR'));
@@ -188,9 +188,10 @@ $i=1;
   echo '</div>';
 	$i++;
 		}
+	}
 		
 
-	}
+	
 		###############################	###############################
 		###############################	###############################
 		

@@ -91,12 +91,12 @@ def create_DR_CSVFILE_COL(nbr_column,table_name):
 			col_i = db['DR_CSVFILE_COL_{}'.format(i+1)]
 
 			OLDVALUES = element['COL{}'.format(i+1)]
-			SYNTATICTYPE, SUBSYNTACTICTYPE = get_type(OLDVALUES)
+			SYNTACTICTYPE, SUBSYNTACTICTYPE = get_type(OLDVALUES)
 
 
 			data = { 'REFERENCE': 'CSVFILE_{}_Col{}'.format(str(datetime.today().date()),i+1),
 					'OLDVALUES' : '{}'.format(OLDVALUES),
-					'SYNTATICTYPE' : '{}'.format(SYNTATICTYPE),
+					'SYNTACTICTYPE' : '{}'.format(SYNTACTICTYPE),
 					'SUBSYNTACTICTYPE' : '{}'.format(SUBSYNTACTICTYPE),
 					'COLUMNWIDTH' : len(OLDVALUES),	
 					'NUMBEROFWORDS' : len(str(OLDVALUES).split(" "))
@@ -303,18 +303,18 @@ def fetch_m(num, db_name):
 	if tmp[0]['NUMBEROFWORDS'] > M104 and col.count_documents({'NUMBEROFWORDS' : {'$gt': 0}}) > 0:
 		M104 = tmp[0]['NUMBEROFWORDS']
 
-	#tmp = col.find({},{'SYNTATICTYPE' : 1, '_id':0})
+	#tmp = col.find({},{'SYNTACTICTYPE' : 1, '_id':0})
 	#replace this part with an automated count of the syntactic type#
 	list = []
-	M105 = col.count_documents({'SYNTATICTYPE' : 'VARCHAR'})
+	M105 = col.count_documents({'SYNTACTICTYPE' : 'VARCHAR'})
 	list.append([M105,"VARCHAR"])
-	M106 = col.count_documents({'SYNTATICTYPE' : 'NUMBER'})
+	M106 = col.count_documents({'SYNTACTICTYPE' : 'NUMBER'})
 	list.append([M106,"NUMBER"])
-	M107 = col.count_documents({'SYNTATICTYPE' : 'DATE'})
+	M107 = col.count_documents({'SYNTACTICTYPE' : 'DATE'})
 	list.append([M107,"DATE"])
-	M108 = col.count_documents({'SYNTATICTYPE' : 'BOOLEAN'})
+	M108 = col.count_documents({'SYNTACTICTYPE' : 'BOOLEAN'})
 	list.append([M108,"BOOLEAN"])
-	M109 = col.count_documents({'SYNTATICTYPE' : 'NULL'})
+	M109 = col.count_documents({'SYNTACTICTYPE' : 'NULL'})
 	#list.append(M109) We don't want a null type column
 
 
