@@ -416,9 +416,9 @@ def main():
 	started_time = time.time() 
 	print('\n\n######  STARTED  ######')
 
-	'''
+	#'''
 	print('etape 1: préparation des données:')
-	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=";")
+	nbr_column, data = open_csvfile(path_file="C:/Users/bckha/Documents/GitHub/ETL_mySQL/www/APP/file_uploaded/csvfile.csv",delimiter=";")
 	#pprint(data)
 	print('Recherche de double pure:')
 	data = clean_pure_double(data)

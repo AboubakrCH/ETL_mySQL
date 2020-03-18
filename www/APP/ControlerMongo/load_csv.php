@@ -20,8 +20,8 @@
 						$file_dest = '../file_uploaded/'.$fichier_csv;
 						move_uploaded_file($file_tmpname,$file_dest);
 
-						$output = exec("C:\Users\bckha\AppData\Local\Programs\Python\Python38\python ../../csvTOmongo/csvtomongo.py 2>&1");
-						echo $output;
+						$output = exec("C:\Users\bckha\AppData\Local\Programs\Python\Python38\python C:\Users\bckha\Documents\GitHub\ETL_mySQL\www\csvTOmongo\csvtomongo.py 2>&1");
+						var_dump($output);
 						#sleep(10);
 						header('Location: resultat.php');
 					} else {
