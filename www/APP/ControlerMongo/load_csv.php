@@ -1,6 +1,6 @@
 <?php
 	session_start();
-				
+	chdir('../../csvTOmongo');
 		if (isset($_POST['submit_file'])) {
 				$filename = $_FILES['csv']['name'];
 				$file_tmpname = $_FILES['csv']['tmp_name'];
@@ -17,10 +17,10 @@
 				if(in_array($extension_upload_csv,$extension_autorisé)){
 					if ($error === 0) {
 						$fichier_csv = 'csvfile.csv'; //basename($_FILES['csv']['name']); //nom du fichier
-						$file_dest = '../file_uploaded/'.$fichier_csv;
+						$file_dest = '../APP/file_uploaded/'.$fichier_csv;
 						move_uploaded_file($file_tmpname,$file_dest);
 
-						$output = exec("C:\Users\bckha\AppData\Local\Programs\Python\Python38\python C:\Users\bckha\Documents\GitHub\ETL_mySQL\www\csvTOmongo\csvtomongo.py 2>&1");
+						$output = exec("python csvtomongo.py 2>&1");
 						var_dump($output);
 						#sleep(10);
 						header('Location: resultat.php');
@@ -36,6 +36,6 @@
 			}
 
 
-		require_once('../View/view_load.php');
-		require_once('../View/head.html');
+		require_once('../APP/View/view_load.php');
+		require_once('../APP/View/head.html');
  ?>

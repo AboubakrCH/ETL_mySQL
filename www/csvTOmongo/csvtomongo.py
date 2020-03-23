@@ -2,14 +2,17 @@ import csv
 import time 
 from pprint import pprint
 import connection_mongo
-import config
 from datetime import datetime
 import re
 from datetime import date
 import json
+import threading
+import config
 
 DB = "csvtotab"
 table_name = "CSV2TABCOLUMNS"
+db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
+
 def open_csvfile(path_file, delimiter):
 	data = []
 	max_column=0
@@ -30,8 +33,6 @@ def open_csvfile(path_file, delimiter):
 	return max_column, data
 
 def clean_database():
-	db, client = connection_mongo.connection_db(host=config.HOST_MONGO, port= config.PORT_MONGO, database = DB)
-
 	meta = db['meta_csvtotab']
 
 	for e in meta.find():
@@ -40,7 +41,7 @@ def clean_database():
 		collection.drop()
 
 	meta.drop()
-	client.close()
+	
 
 def col_struct(nbr_column):
 	
@@ -61,8 +62,6 @@ def update_data(nbr_column, data):
 	return all_data
 
 def create_table(nbr_column, table_name, data): 
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
-
 	col_create = db[table_name]
 	col_insert_in_meta = db['meta_csvtotab']
 	col_insert_in_meta.insert_one({'table_name': table_name})
@@ -74,10 +73,30 @@ def create_table(nbr_column, table_name, data):
 			collection[key] = element[key] if key in element else ""
 		col_create.insert_one(collection)
 
-	client.close()
+	
+
+
+#Threading the creation of the dr csv file col i
+def th_drcsvfile(i,element):
+	
+	col_i = db['DR_CSVFILE_COL_{}'.format(i+1)]
+
+	OLDVALUES = element['COL{}'.format(i+1)]
+	SYNTACTICTYPE, SUBSYNTACTICTYPE = get_type(OLDVALUES)
+
+
+	data = { 'REFERENCE': 'CSVFILE_{}_Col{}'.format(str(datetime.today().date()),i+1),
+			'OLDVALUES' : '{}'.format(OLDVALUES),
+			'SYNTACTICTYPE' : '{}'.format(SYNTACTICTYPE),
+			'SUBSYNTACTICTYPE' : '{}'.format(SUBSYNTACTICTYPE),
+			'COLUMNWIDTH' : len(OLDVALUES),	
+			'NUMBEROFWORDS' : len(str(OLDVALUES).split(" "))
+		}
+	#print(data)
+
+	col_i.insert_one(data)	
 
 def create_DR_CSVFILE_COL(nbr_column,table_name):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	meta = db['meta_csvtotab']
 
 	table = db[table_name]
@@ -87,28 +106,20 @@ def create_DR_CSVFILE_COL(nbr_column,table_name):
 
 	for element in table.find():
 
+		threads = list()
 		for i in range(nbr_column):
-			col_i = db['DR_CSVFILE_COL_{}'.format(i+1)]
+			x = threading.Thread(target = th_drcsvfile,args = (i,element))
+			x.start()
+			threads.append(x)
+			#print("start ",i)
 
-			OLDVALUES = element['COL{}'.format(i+1)]
-			SYNTACTICTYPE, SUBSYNTACTICTYPE = get_type(OLDVALUES)
+		for index, t in enumerate(threads):
+			#print("waiting for ",index)
+			t.join()
 
-
-			data = { 'REFERENCE': 'CSVFILE_{}_Col{}'.format(str(datetime.today().date()),i+1),
-					'OLDVALUES' : '{}'.format(OLDVALUES),
-					'SYNTACTICTYPE' : '{}'.format(SYNTACTICTYPE),
-					'SUBSYNTACTICTYPE' : '{}'.format(SUBSYNTACTICTYPE),
-					'COLUMNWIDTH' : len(OLDVALUES),	
-					'NUMBEROFWORDS' : len(str(OLDVALUES).split(" "))
-					}
-			#print(data)
-
-			col_i.insert_one(data)
-
-	client.close()
+	
 
 def get_type(txt):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	reg = db['regex']
 
 	for element in reg.find():
@@ -118,14 +129,13 @@ def get_type(txt):
 
 		x = re.match(regex, txt)
 		if x :
-			client.close()
+			
 			return type_,subtype
 
-	client.close()
+	
 	return "UNKNOWN","UNKNOWN"
 
 def get_type_dominant(tabnum):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col_i = db['DR_CSVFILE_COL_{}'.format(tabnum)]
 
 	query = [{ '$group' : {'_id' : '$SUBSYNTACTICTYPE', 'count': {'$sum' : 1}}},
@@ -140,11 +150,10 @@ def get_type_dominant(tabnum):
 			max = element['count']
 			dominant = element['_id']
 
-	client.close()
+	
 	return dominant
 
 def get_semantic_dominant(tabnum):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col_i = db['DR_CSVFILE_COL_{}'.format(tabnum)]
 
 	query = [{ '$group' : {'_id' : '$SEMANTICCATEGORY', 'count': {'$sum' : 1}}},
@@ -159,11 +168,10 @@ def get_semantic_dominant(tabnum):
 			max = element['count']
 			dominant = element['_id']
 
-	client.close()
+	
 	return dominant
 
 def get_subsemantic_dominant(tabnum):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col_i = db['DR_CSVFILE_COL_{}'.format(tabnum)]
 
 	query = [{ '$group' : {'_id' : '$SEMANTICSUBCATEGORY', 'count': {'$sum' : 1}}},
@@ -178,11 +186,10 @@ def get_subsemantic_dominant(tabnum):
 			max = element['count']
 			dominant = element['_id']
 
-	client.close()
+	
 	return dominant
 
 def detect_anomaly(num):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col = db['DR_CSVFILE_COL_{}'.format(num)]
 
 	dominant = get_type_dominant(num)
@@ -201,10 +208,9 @@ def detect_anomaly(num):
 			update = { '$set' : {'OBSERVATION' : ""}}
 			col.update_one(id,update)
 
-	client.close()	
+		
 
 def new_val(tabnum):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col = db['DR_CSVFILE_COL_{}'.format(tabnum)]
 
 	for element in col.find():
@@ -217,10 +223,9 @@ def new_val(tabnum):
 			update = { '$set' : {'NEWVALUES' : "{}".format(element['OBSERVATION'])}}
 			col.update_one(id,update)
 
-	client.close()	
+		
 
 def check_semantique(tabnum):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO,port = config.PORT_MONGO,database = DB)
 	col = db['DR_CSVFILE_COL_{}'.format(tabnum)]
 	reg_lst = db['ddre']
 	ddvs_lst = db['ddvs']
@@ -249,15 +254,37 @@ def check_semantique(tabnum):
 
 
 
-	client.close()				
+					
 
 
 def update_DR_CSVFILE_COL(nbr_column):
 
+	threads = list()
 	for i in range(nbr_column):
-		detect_anomaly(i+1)
-		new_val(i+1)
-		check_semantique(i+1)
+		x = threading.Thread(target = detect_anomaly, args = (i+1,))
+		x.start()
+		threads.append(x)
+
+	for t in threads:
+		t.join()
+
+
+	tnv = list()
+	tcs = list()
+	for i in range(nbr_column):
+		x = threading.Thread(target = new_val, args = (i+1,))
+		x.start()
+		tnv.append(x)
+
+		y = threading.Thread(target = check_semantique, args = (i+1,))
+		y.start()
+		tcs.append(y)
+
+	for t in tnv:
+		t.join()
+
+	for t in tcs:
+		t.join()
 
 def clean_pure_double(data):
 
@@ -279,7 +306,6 @@ def clean_pure_double(data):
 	return noneDupData
 
 def fetch_m(num, db_name):
-	db,client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = db_name)
 	col = db['DR_CSVFILE_COL_{}'.format(num)]
 
 	M000 = col.count_documents({})
@@ -344,6 +370,9 @@ def fetch_m(num, db_name):
 
 
 	data = {
+			"REFERENCE" : "CSV_FILE_{}".format(date.today()),
+			"Old Name" : "COL{}".format(num),
+			"New Name" : "COL_{}".format(M117),
 			"Nbr of values" : M000,
 			"Nbr of not null values" : M100,
 			"Nbr of null values" : M101,
@@ -368,23 +397,25 @@ def fetch_m(num, db_name):
 			}
 
 
-	return data
-	client.close()
+	col = db['DR_CSVFILE_TabCol']
+	col.insert_one(data)
+	
 
 def create_m0(nbr_column, db_name):
-	db, client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = db_name)
 	meta = db['meta_csvtotab']
 	meta.insert_one({'table_name' : 'DR_CSVFILE_TabCol'})
 
 
-	col = db['DR_CSVFILE_TabCol']
-
+	threads = list()
 	for i in range(nbr_column):
-		data = fetch_m(i+1,db_name)
-		col.insert_one(data)
+		x = threading.Thread(target = fetch_m, args = (i+1,db_name,))
+		x.start()
+		threads.append(x)
 
+	for t in threads:
+		t.join()
 
-	client.close()
+	
 
 
 def clean_quote(data):
@@ -400,7 +431,6 @@ def clean_quote(data):
 	return corrected_data
 
 def show_mongo_collections(db_name):
-	db, client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = db_name)
 
 	for collection in db.list_collection_names():
 		col = db[collection]
@@ -410,7 +440,7 @@ def show_mongo_collections(db_name):
 			print(e)
 		print('\n\n')
 
-	client.close()
+	
 
 def main():
 	started_time = time.time() 
@@ -418,7 +448,7 @@ def main():
 
 	#'''
 	print('etape 1: préparation des données:')
-	nbr_column, data = open_csvfile(path_file="C:/Users/bckha/Documents/GitHub/ETL_mySQL/www/APP/file_uploaded/csvfile.csv",delimiter=";")
+	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=",")
 	#pprint(data)
 	print('Recherche de double pure:')
 	data = clean_pure_double(data)
@@ -452,8 +482,9 @@ def main():
 	#for e in x:
 	#	pprint(e)
 
-	client.close()
+	
 	#'''
+	client.close()
 	print('\nFINISHED IN {} SECONDS\n'.format(round(time.time()-started_time,2)))
 
 main()

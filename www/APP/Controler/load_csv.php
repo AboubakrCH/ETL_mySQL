@@ -1,6 +1,6 @@
 <?php
 	session_start();
-				
+	chdir('../../csvTOtab');
 		if (isset($_POST['submit_file'])) {
 				$filename = $_FILES['csv']['name'];
 				$file_tmpname = $_FILES['csv']['tmp_name'];
@@ -20,7 +20,7 @@
 						$file_dest = '../file_uploaded/'.$fichier_csv;
 						move_uploaded_file($file_tmpname,$file_dest);
 
-						$output = exec("C:\Users\bckha\AppData\Local\Programs\Python\Python38\python ../../csvTOtab/csvtotab.py 2>&1");
+						$output = exec("python csvtotab.py 2>&1");
 						echo $output;
 						#sleep(10);
 						header('Location: resultat.php');
@@ -36,6 +36,6 @@
 			}
 
 
-		require_once('../View/view_load.php');
-		require_once('../View/head.html');
+		require_once('../APP/View/view_load.php');
+		require_once('../APP/View/head.html');
  ?>

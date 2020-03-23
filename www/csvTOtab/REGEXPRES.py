@@ -81,6 +81,8 @@ def LD(s, t):
 
     return res
 
+ def soundex(s, t):
+
 def test():
 	#print(LD("Python", "Peithen"))	
 	client = connection_mongo.connection_client(host=config.HOST_MONGO, port=config.PORT_MONGO)
@@ -94,6 +96,6 @@ def test():
 
 	print(testdb.list_collection_names())
 
-test()
+#test()
 
 

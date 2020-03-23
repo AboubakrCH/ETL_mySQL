@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pymongo
+import config
 """
 Module which connects to database
 """
@@ -27,3 +28,8 @@ def connection_client(host, port):
     except Exception as E:
         print(str(E))        
 
+def test():
+    client1 = connection_client('localhost', 27017)
+    client2 = connection_client('localhost', 27017)
+
+test
