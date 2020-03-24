@@ -8,6 +8,7 @@ from datetime import date
 import json
 import threading
 import config
+from REGEXPRES import update_regex
 
 DB = "csvtotab"
 table_name = "CSV2TABCOLUMNS"
@@ -77,7 +78,7 @@ def create_table(nbr_column, table_name, data):
 
 
 #Threading the creation of the dr csv file col i
-def th_drcsvfile(i,element):
+def th_drcsvfile2(i,element):
 	
 	col_i = db['DR_CSVFILE_COL_{}'.format(i+1)]
 
@@ -96,6 +97,20 @@ def th_drcsvfile(i,element):
 
 	col_i.insert_one(data)	
 
+'''
+#Testing Nested execution of threads, works but need to study how effective it is, and when to use it.
+def th_drcsvfile1(nbr_column,element):
+	threads = list()
+	for i in range(nbr_column):
+		x = threading.Thread(target = th_drcsvfile2,args = (i,element))
+		x.start()
+		threads.append(x)
+		#print("start ",i)
+
+	for t in threads:
+		#print("waiting for ",index)
+		t.join()
+'''
 def create_DR_CSVFILE_COL(nbr_column,table_name):
 	meta = db['meta_csvtotab']
 
@@ -104,19 +119,28 @@ def create_DR_CSVFILE_COL(nbr_column,table_name):
 	for i in range(nbr_column):
 		meta.insert_one({'table_name' : 'DR_CSVFILE_COL_{}'.format(i+1)})
 
+	#ths = list()
 	for element in table.find():
 
+		#x = threading.Thread(target = th_drcsvfile1, args = (nbr_column,element))
+		#x.start()
+		#ths.append(x)
+
+		
 		threads = list()
 		for i in range(nbr_column):
-			x = threading.Thread(target = th_drcsvfile,args = (i,element))
+			x = threading.Thread(target = th_drcsvfile2,args = (i,element))
 			x.start()
 			threads.append(x)
 			#print("start ",i)
 
-		for index, t in enumerate(threads):
+		for t in threads:
 			#print("waiting for ",index)
 			t.join()
-
+		'''
+	for t in ths:
+		t.join()
+		'''
 	
 
 def get_type(txt):
@@ -289,7 +313,7 @@ def update_DR_CSVFILE_COL(nbr_column):
 def clean_pure_double(data):
 
 	noneDupData = []
-	noneDupData.append(data[0]) #We  pute the first element of the data in the list
+	noneDupData.append(data[0]) #We put the first element of the data in the list
 
 	#For each element in the data we check if the element is already in the list we don"t re-add it, 
 	#else we add it in the list and we proceed with the next element of the data
@@ -298,6 +322,7 @@ def clean_pure_double(data):
 		for y in noneDupData:
 			if x == y:
 				dup = True
+				break
 
 		if dup == False:
 			noneDupData.append(x)
@@ -370,9 +395,10 @@ def fetch_m(num, db_name):
 
 
 	data = {
+			"order" : num,
 			"REFERENCE" : "CSV_FILE_{}".format(date.today()),
 			"Old Name" : "COL{}".format(num),
-			"New Name" : "COL_{}".format(M117),
+			"New Name" : "COL{}_{}".format(num,M117),
 			"Nbr of values" : M000,
 			"Nbr of not null values" : M100,
 			"Nbr of null values" : M101,
@@ -440,16 +466,95 @@ def show_mongo_collections(db_name):
 			print(e)
 		print('\n\n')
 
+
+#-------------Table final ------------
+def gatherlign(num,l):
+
+	col = db['DR_CSVFILE_COL_{}'.format(num+1)]
+	result = col.find()
+	for e in result:
+		#print(e['NEWVALUES'])
+		l[num] = l[num] + [e['NEWVALUES']]
+
+
+
+def rebuild_csv_table(nbrcol, table_name):
+	liste = list()
+
+
+	threads = list()
+
+	for i in range(nbrcol):
+		x = list()
+		liste.append(x)
+
+	for i in range(nbrcol):
+		x = threading.Thread(target = gatherlign, args = (i,liste))
+		x.start()
+		threads.append(x)
+
+	for t in threads:
+		t.join()
+
+	format = matchwithnames()
+	#print(format)
+
+	meta = db['meta_csvtotab']
+	meta.insert_one({'table_name': table_name})
+
+	threads = list()
+	col = db[table_name]
+
+	for index, e in enumerate(liste[0]):
+		lign = list()
+		for i in range(nbrcol):
+			lign.append(liste[i][index])
+		x = threading.Thread(target = insert_lign, args =(lign,format,col))
+		x.start()
+		threads.append(x)
+
+	for t in threads:
+		t.join()	
+
+
+def insert_lign(lign,format,col):
+	data = {}
+	for key in format:
+		for value in lign:
+			data[key] = value
+			lign.remove(value)
+			break
+
+	col.insert_one(data)
+	#pprint(tmp)
+
+
+
+def matchwithnames():
+	col = db['DR_CSVFILE_TabCol']
+	liste = list()
+	result = col.find({},{"New Name" : 1, "order" : 1}).sort([("order",1)])
+	for e in result:
+		#pprint(e)
+		#print(e['New Name'])
+		liste.append(e['New Name'])
 	
+	return liste
+
+#-----------MAIN------------
 
 def main():
 	started_time = time.time() 
 	print('\n\n######  STARTED  ######')
 
+	print('Initialisation des tables regex')
+	update_regex('mongodb')
+
 	#'''
 	print('etape 1: préparation des données:')
 	nbr_column, data = open_csvfile(path_file="../APP/file_uploaded/csvfile.csv",delimiter=",")
 	#pprint(data)
+	#print(nbr_column)
 	print('Recherche de double pure:')
 	data = clean_pure_double(data)
 	print('Recherche de guillemet')
@@ -471,7 +576,19 @@ def main():
 	
 	print('profiling: profiling des données')
 	create_m0(nbr_column,DB)
+
+	print('\nFinalisation: création de la table final')
+	rebuild_csv_table(6,"NEWCSV2TABCOLUMNS")
+
 	'''
+	col = db["NEWCSV2TABCOLUMNS"]
+	cursor = col.find()
+
+	for e in cursor:
+		print(e)
+
+	print('^table final with {} ligne^'.format(col.count_documents({})))
+	
 	#test part
 	db,client = connection_mongo.connection_db(host = config.HOST_MONGO, port = config.PORT_MONGO, database = DB)
 	col = db['DR_CSVFILE_COL_{}'.format(4)]

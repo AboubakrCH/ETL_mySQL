@@ -82,19 +82,3 @@ def LD(s, t):
 
     return res
 
-def test():
-	#print(LD("Python", "Peithen"))	
-	client = connection_mongo.connection_client(host=config.HOST_MONGO, port=config.PORT_MONGO)
-
-	testdb = client['csvtotab']
-
-	print(testdb.list_collection_names())
-
-	update_regex('mongodb')
-
-
-	print(testdb.list_collection_names())
-
-test()
-
-
