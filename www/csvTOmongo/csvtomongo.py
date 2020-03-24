@@ -471,7 +471,7 @@ def show_mongo_collections(db_name):
 def gatherlign(num,l):
 
 	col = db['DR_CSVFILE_COL_{}'.format(num+1)]
-	result = col.find()
+	result = col.find({},{'NEWVALUES':1,'OLDVALUES':1})
 	for e in result:
 		#print(e['NEWVALUES'])
 		l[num] = l[num] + [e['NEWVALUES']]
@@ -505,10 +505,14 @@ def rebuild_csv_table(nbrcol, table_name):
 	threads = list()
 	col = db[table_name]
 
+	#print(liste)
 	for index, e in enumerate(liste[0]):
 		lign = list()
 		for i in range(nbrcol):
-			lign.append(liste[i][index])
+			try:
+				lign.append(liste[i][index])
+			except:
+				lign.append('') #for some reason, the number of column is some time wrong will investigate later
 		x = threading.Thread(target = insert_lign, args =(lign,format,col))
 		x.start()
 		threads.append(x)
@@ -525,6 +529,7 @@ def insert_lign(lign,format,col):
 			lign.remove(value)
 			break
 
+	#print(data)
 	col.insert_one(data)
 	#pprint(tmp)
 
